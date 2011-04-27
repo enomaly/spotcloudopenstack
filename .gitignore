@@ -1,0 +1,11 @@
+*.pyc
+*.pyo
+*.swp
+*.orig
+*.swo
+*.egg-info
+*~
+Thumbs.db
+*.log
+.DS_Store
+.project
