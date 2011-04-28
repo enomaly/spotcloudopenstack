@@ -19,7 +19,7 @@ from spotcloudopenstack.novaconn import get_nova_connection, get_instance_id
 from spotcloudopenstack.app import app, db
 
 import logging
-logger = logging.getLogger('scopentstack')
+logger = logging.getLogger('spotcloudopenstack')
 
 
 DOWNLOAD_LIMIT = 30*60 #sec
