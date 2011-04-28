@@ -11,14 +11,14 @@ import cgi
 
 from flask import request, jsonify, abort
 
-from scopenstack.app import app, db
-from scopenstack.models import HardwareTemplate, VM, Task, Package
-from scopenstack.provision import ProvisionWorker
-from scopenstack.novaconn import get_nova_connection
-from scopenstack.auth import check_auth, WrongAuth
+from spotcloudopenstack.app import app, db
+from spotcloudopenstack.models import HardwareTemplate, VM, Task, Package
+from spotcloudopenstack.provision import ProvisionWorker
+from spotcloudopenstack.novaconn import get_nova_connection
+from spotcloudopenstack.auth import check_auth, WrongAuth
 
 import logging
-logger = logging.getLogger('scopenstack')
+logger = logging.getLogger('spotcloudopenstack')
 
 
 @app.route("/rest/hosting/<path:path>",

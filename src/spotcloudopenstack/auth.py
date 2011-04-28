@@ -12,9 +12,9 @@ import cgi
 
 from flask import request
 
-from scopenstack.app import app
+from spotcloudopenstack.app import app
 
-logger = logging.getLogger('scopenstack')
+logger = logging.getLogger('spotcloudopenstack')
 
 
 class WrongAuth(Exception):

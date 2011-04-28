@@ -7,7 +7,7 @@ incide your home folder
 
 """
 
-from scopenstack.models import init_db
+from spotcloudopenstack.models import init_db
 
 if __name__ == '__main__':
     init_db()

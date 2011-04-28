@@ -7,8 +7,8 @@ Flask-SQLAlchemy Model subclusses for working with database
 from datetime import datetime
 import uuid
 
-from scopenstack.app import app, db
-from scopenstack.novaconn import get_instance_types, get_instances_dict
+from spotcloudopenstack.app import app, db
+from spotcloudopenstack.novaconn import get_instance_types, get_instances_dict
 
 
 class Task(db.Model):

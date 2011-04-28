@@ -10,13 +10,13 @@ from flask import Flask
 from flaskext.sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-if os.environ.has_key("SCOPENSTACK_SETTINGS"):
-    app.config.from_envvar('SCOPENSTACK_SETTINGS')
+if os.environ.has_key("SPOTCLOUDOPENSTACK_SETTINGS"):
+    app.config.from_envvar('SPOTCLOUDOPENSTACK_SETTINGS')
 db = SQLAlchemy(app)
 
 import logging
 
-logger = logging.getLogger('scopenstack')
+logger = logging.getLogger('spotcloudopenstack')
 
 if app.config.has_key('LOGGING_FILE'):
     handler = RotatingFileHandler(app.config['LOGGING_FILE'],

@@ -6,8 +6,8 @@ via EC2 API and command line tools
 
 from subprocess import Popen, PIPE
 
-from scopenstack.client import NovaAdminClient
-from scopenstack.app import app
+from spotcloudopenstack.client import NovaAdminClient
+from spotcloudopenstack.app import app
 
 def get_nova_connection():
     """Return Admin Client connection to communicate with

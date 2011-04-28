@@ -5,14 +5,14 @@ Run App
 
 from flask import request
 
-from scopenstack.app import app, db
-from scopenstack.novaconn import get_nova_connection, nova_manage
-from scopenstack.models import HardwareTemplate, Package, VM, Task
-from scopenstack.provision import ProvisionWorker
-from scopenstack.api import rest
+from spotcloudopenstack.app import app, db
+from spotcloudopenstack.novaconn import get_nova_connection, nova_manage
+from spotcloudopenstack.models import HardwareTemplate, Package, VM, Task
+from spotcloudopenstack.provision import ProvisionWorker
+from spotcloudopenstack.api import rest
 
 import logging
-logger = logging.getLogger('scopenstack')
+logger = logging.getLogger('spotcloudopenstack')
 
 
 def main():

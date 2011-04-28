@@ -11,14 +11,14 @@ import uuid
 
 from flask import request
 
-from scopenstack.app import app, db
-from scopenstack.models import VM, Package, HardwareTemplate, Task
-from scopenstack import auth
-from scopenstack.api import rest, ptemplate_list
+from spotcloudopenstack.app import app, db
+from spotcloudopenstack.models import VM, Package, HardwareTemplate, Task
+from spotcloudopenstack import auth
+from spotcloudopenstack.api import rest, ptemplate_list
 
 import logging
 
-logger = logging.getLogger('scopenstack')
+logger = logging.getLogger('spotcloudopenstack')
 logger.setLevel(logging.WARNING)
 
 USER = 'spotcloud'

@@ -14,9 +14,9 @@ import shutil
 import re
 from glob import glob
 
-from scopenstack.models import Package, HardwareTemplate, Task, VM
-from scopenstack.novaconn import get_nova_connection, get_instance_id
-from scopenstack.app import app, db
+from spotcloudopenstack.models import Package, HardwareTemplate, Task, VM
+from spotcloudopenstack.novaconn import get_nova_connection, get_instance_id
+from spotcloudopenstack.app import app, db
 
 import logging
 logger = logging.getLogger('scopentstack')

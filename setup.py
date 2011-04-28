@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 CLASSIFIERS = [
-    'Development Status :: 3 - Alpha',
+    'Development Status :: 4 - Beta',
     'Intended Audience :: Developers',
     'Intended Audience :: System Administrators',
     'License :: OSI Approved :: Apache Software License',
@@ -14,13 +14,14 @@ CLASSIFIERS = [
     'Topic :: Software Development :: Libraries :: Python Modules'
 ]
 
-setup(name='scopenstack',
-      version='0.3',
+setup(name='spotcloudopenstack',
+      version='0.9',
       packages=find_packages('src'),
       package_dir = {'':'src'},
       author='DmitriKo',
       author_email='dmitrikozhevin@gmail.com',
       url="http://spotcloud.com",
+      description=__doc__,
       license='Apache',
       include_package_data=True,
       classifiers=CLASSIFIERS,
