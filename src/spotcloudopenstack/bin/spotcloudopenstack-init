@@ -18,9 +18,9 @@ Usage:
 import sys
 import os
 import re
+from glob import glob
 from subprocess import call
 
-from spotcloudopenstack import models
 
 ROOT_DIR = '/var/lib/spotcloudopenstack'
 REPO_DIR = os.path.join(ROOT_DIR, 'repo')
@@ -45,10 +45,58 @@ def make_dirs(user):
     for dir_ in [ROOT_DIR, REPO_DIR, LOG_DIR, KEYS_DIR]:
         if not os.path.exists(dir_):
             os.mkdir(dir_)
-            if call(['chown', user, dir_]):
-                raise RuntimeError(
-                    "Could not chown %s for user %s" % (
-                        dir_, user))
+        if call(
+            ['sudo', 'chown', "%s:%s"  % (user, user), dir_]):
+            raise RuntimeError(
+                "Could not chown %s for user %s" % (
+                    dir_, user))
+
+
+def is_user_exists(user):
+    "Check /etc/passwd for user"
+    if re.search(
+        "^%s:" % user,
+        open('/etc/passwd').read(),
+        re.M):
+        return True
+    return False
+
+
+def update_sudoers(user):
+    "User needs password less sudo for mount,umount and losetup"
+    content = open('/etc/sudoers').read()
+    line = "\n%s ALL = NOPASSWD: /bin/mount,/sbin/losetup,/bin/umount\n" % ( 
+        user, )
+    if re.search("^%s" % user, content, re.M):
+        print 'The record for %s in /etc/sudoers already exists.' % user
+        print 'Make sure %s is able to sudo mount without password' % user
+        return 
+    print """
+We are going to add %s at the end of your /etc/sudoers file.
+Please, type 'yes' if this is OK for you. 
+Othervise, make sure user %s has an ability to do password less
+sudo mount, sudo umount and sudo losetup -a
+""" % (line, user)
+    if raw_input(" [yes | no]: ").lower() == 'yes':
+        open('/etc/sudoers~', 'w').write(content) # backup
+        open('/etc/sudoers', 'w').write(content+line)
+        print '/etc/sudoers updated.'
+    else:
+        print '/etc/sudoers was not updated.' 
+
+
+def user2group(user, group):
+    "Add user to  group if not already done"
+    match = re.search('^%s:x:\d+:(.*)$' % group, 
+                      open('/etc/group').read(),
+                      re.M)
+    if not match:
+        raise RuntimeError(
+            "Could not find group %s in /etc/group" % group)
+    if user not in match.group(1).split(','):
+        if call(['sudo', 'gpasswd', '--add', user, group]):
+            raise RuntimeError(
+                "Could not add %s to %s group" % (user, group))
 
 
 def make_user(user):
@@ -59,61 +107,23 @@ def make_user(user):
     and sudo losetup -a 
 
     """
-    def is_exists(user):
-        "Check /etc/passwd for user"
-        if re.search(
-            "^%s:" % user,
-            open('/etc/passwd').read()):
-            return True
-        return False
-    def create(user):
-        "Create system user in disk group"
+    if not is_user_exists(user):
         cmd = "useradd -m -r --shell /bin/sh -G disk --home-dir %s %s" % (
             ROOT_DIR, user)
         if call(cmd, shell=True):
             raise RuntimeError(
                 "Could not create user with command %s" % cmd)
-    def update_sudoers(user):
-        "User needs password less sudo for mount,umount and losetup"
-        content = open('/etc/sudoers').read()
-        line = "\n%s ALL = NOPASSWD: /bin/mount,/sbin/losetup,/bin/umount\n" % ( 
-            user, )
-        if re.search("^%s" % user, content, re.M):
-            print 'The record for %s in /etc/sudoers already exists.' % user
-            print 'Make sure %s is able to sudo mount without password' % user
-            return 
-        print """
-We are going to add %s at the end of your /etc/sudoers file.
-Please, type 'yes' if this is OK for you. 
-Othervise, make sure user %s has an ability to do password less
-sudo mount, sudo umount and sudo losetup -a
-""" % (line, user)
-        if raw_input(" [yes | no]: ").lower() == 'yes':
-            open('/etc/sudoers~', 'w').write(content) # backup
-            open('/etc/sudoers', 'w').write(content+line)
-            print '/etc/sudoers updated.'
-        else:
-            print '/etc/sudoers did not updated' 
-    def user2disk_group(user):
-        "Add user to disk group if not already done"
-        match = re.search('^disk:x:\d+:(.*)$', open('/etc/group').read())
-        if not match:
-            raise RuntimeError(
-                "Could not find group disk in /etc/group")
-        if user not in match.group(1).split(','):
-            if call(['sudo', 'gpasswd', '--add', user, 'disk']):
-                raise RuntimeError(
-                    "Could not add %s to disk group" % user)
-        
-    if not is_exists(user):
-        create(user)
+
     update_sudoers(user)
-    user2disk_group(user)
+
+    user2group(user, 'disk')
     
 
 def get_keys(user, project):
     "Dowload keys and return content of novarc"
     os.chdir(KEYS_DIR)
+    for path in glob('*'):
+        os.unlink(path)
     if call(
         ['nova-manage', 'project', 'zipfile', project, user]):
         raise RuntimeError(
@@ -192,6 +202,7 @@ def make_config(novarc, user, project):
 
 def initialize_db():
     "Drop/create tables, make sure db file name is owned by user"
+    from spotcloudopenstack import models
     models.init_db(SQLALCHEMY_DATABASE_URI)
     if 'sqlite' in SQLALCHEMY_DATABASE_URI:
         if call(['chmod', '+x', SQLITE_FILE]):
@@ -207,14 +218,20 @@ def doit(user, project):
     make_publish_script(novarc)
     make_config(novarc, user, project)
     initialize_db()
+    print 'Done'
 
 
 def main(argv=sys.argv):
     "Check args and run doit method"
+    if os.getuid() != 0:
+        print 'Run me with sudo, please.'
+        sys.exit(1)
+
     if len(argv) != 3:
         print __doc__
         sys.exit(1)
-    
+    doit(argv[1], argv[2])
+
 
 if __name__ == '__main__':
     main()

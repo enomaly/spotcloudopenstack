@@ -1,6 +1,10 @@
 "Python Adapter for connecting OpenStack cluster with SpotCloud"
 
+import os
 from setuptools import setup, find_packages
+
+SCRIPTS_DIR = os.path.join('src', 'spotcloudopenstack', 'bin')
+
 
 CLASSIFIERS = [
     'Development Status :: 4 - Beta',
@@ -14,6 +18,7 @@ CLASSIFIERS = [
     'Topic :: Software Development :: Libraries :: Python Modules'
 ]
 
+
 setup(name='spotcloudopenstack',
       version='0.9',
       packages=find_packages('src'),
@@ -25,5 +30,6 @@ setup(name='spotcloudopenstack',
       license='Apache',
       include_package_data=True,
       classifiers=CLASSIFIERS,
+      scripts = [os.path.join(SCRIPTS_DIR, 'spotcloudopenstack-init')],
       install_requires=['uuid', 'boto', 'Flask-SQLAlchemy']
 )
