@@ -21,6 +21,7 @@ if os.environ.has_key("SPOTCLOUDOPENSTACK_SETTINGS"):
 db = SQLAlchemy(app)
 
 import logging
+from logging.handlers import RotatingFileHandler
 
 logger = logging.getLogger('spotcloudopenstack')
 
