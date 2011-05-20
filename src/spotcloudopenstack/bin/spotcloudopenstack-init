@@ -1,0 +1,220 @@
+#! /usr/bin/python
+# spotcloudopentstack.py
+
+"""
+Create directories and generate config files
+for SpotCloud OpenStack Adapter
+
+It assumes you have an admin user and a project created
+See http://wiki.openstack.org/RunningNova
+
+Usage:
+
+    sudo spotcloudopenstack-init USER_NAME PROJECT_NAME
+
+"""
+
+
+import sys
+import os
+import re
+from subprocess import call
+
+from spotcloudopenstack import models
+
+ROOT_DIR = '/var/lib/spotcloudopenstack'
+REPO_DIR = os.path.join(ROOT_DIR, 'repo')
+CONFIG = os.path.join(ROOT_DIR, "spotcloudopenstack.conf")
+PUBLISH_SCRIPT = os.path.join(ROOT_DIR, 'sc-publish-tarball.sh')
+LOG_DIR = '/var/log/spotcloudopenstack'
+KEYS_DIR = os.path.join(ROOT_DIR, 'keys')
+SQLITE_FILE = '%s/db.sqlite' % ROOT_DIR
+SQLALCHEMY_DATABASE_URI = 'sqlite:///%s' % SQLITE_FILE
+CONFIG_DEFAULTS = (
+    'NOVA_REGION = "nova"',
+    'NOVA_MANAGE = "/usr/bin/nova-manage"',
+    'SQLALCHEMY_DATABASE_URI = "%s"' % SQLALCHEMY_DATABASE_URI,
+    'PACKAGE_DOWNLOAD_URL_TMPL = "http://spotcloud.appspot.com/api/package/download?uuid=%s"',
+    'REPO_DIR = "%s"' % REPO_DIR,
+    'PUBLISH_SCRIPT = "%s"' % PUBLISH_SCRIPT,
+    'LOGGING_FILE = "%s/api.log"' % LOG_DIR)
+
+
+def make_dirs(user):
+    "Make all needed dirs"
+    for dir_ in [ROOT_DIR, REPO_DIR, LOG_DIR, KEYS_DIR]:
+        if not os.path.exists(dir_):
+            os.mkdir(dir_)
+            if call(['chown', user, dir_]):
+                raise RuntimeError(
+                    "Could not chown %s for user %s" % (
+                        dir_, user))
+
+
+def make_user(user):
+    """
+    Make sure the user exists (create if needed),
+    is in the disk group,
+    is able to run password less sudo mount/umount
+    and sudo losetup -a 
+
+    """
+    def is_exists(user):
+        "Check /etc/passwd for user"
+        if re.search(
+            "^%s:" % user,
+            open('/etc/passwd').read()):
+            return True
+        return False
+    def create(user):
+        "Create system user in disk group"
+        cmd = "useradd -m -r --shell /bin/sh -G disk --home-dir %s %s" % (
+            ROOT_DIR, user)
+        if call(cmd, shell=True):
+            raise RuntimeError(
+                "Could not create user with command %s" % cmd)
+    def update_sudoers(user):
+        "User needs password less sudo for mount,umount and losetup"
+        content = open('/etc/sudoers').read()
+        line = "\n%s ALL = NOPASSWD: /bin/mount,/sbin/losetup,/bin/umount\n" % ( 
+            user, )
+        if re.search("^%s" % user, content, re.M):
+            print 'The record for %s in /etc/sudoers already exists.' % user
+            print 'Make sure %s is able to sudo mount without password' % user
+            return 
+        print """
+We are going to add %s at the end of your /etc/sudoers file.
+Please, type 'yes' if this is OK for you. 
+Othervise, make sure user %s has an ability to do password less
+sudo mount, sudo umount and sudo losetup -a
+""" % (line, user)
+        if raw_input(" [yes | no]: ").lower() == 'yes':
+            open('/etc/sudoers~', 'w').write(content) # backup
+            open('/etc/sudoers', 'w').write(content+line)
+            print '/etc/sudoers updated.'
+        else:
+            print '/etc/sudoers did not updated' 
+    def user2disk_group(user):
+        "Add user to disk group if not already done"
+        match = re.search('^disk:x:\d+:(.*)$', open('/etc/group').read())
+        if not match:
+            raise RuntimeError(
+                "Could not find group disk in /etc/group")
+        if user not in match.group(1).split(','):
+            if call(['sudo', 'gpasswd', '--add', user, 'disk']):
+                raise RuntimeError(
+                    "Could not add %s to disk group" % user)
+        
+    if not is_exists(user):
+        create(user)
+    update_sudoers(user)
+    user2disk_group(user)
+    
+
+def get_keys(user, project):
+    "Dowload keys and return content of novarc"
+    os.chdir(KEYS_DIR)
+    if call(
+        ['nova-manage', 'project', 'zipfile', project, user]):
+        raise RuntimeError(
+            "Could not download credentials for %s/%s" % (
+                user, project))
+    if call(['unzip', 'nova.zip']):
+        raise RuntimeError(
+            "Could not uzip nova.zip")
+    return open('novarc').read()
+
+
+def make_publish_script(novarc):
+    "Make script for publishing tar gz from running server"
+    content = []
+    for line in  novarc.split('\n'):
+        line = line.strip()
+        if line.startswith('NOVA_KEY_DIR'):
+            content.append('NOVA_KEY_DIR="%s"' % KEYS_DIR)
+            continue
+        content.append(line)
+
+    content.insert(0, '#!/bin/sh')
+    content.append('uec-publish-tarball $1 $2 $3')
+    open(PUBLISH_SCRIPT, 'w').write("\n".join(content))
+    if call(['chmod', '+x', PUBLISH_SCRIPT]):
+        raise RuntimeError(
+            "Could not chmod +x %s" % PUBLISH_SCRIPT)
+
+
+def make_config(novarc, user, project):
+    "Make config file"
+    def get_access_key(novarc):
+        "Extract access key from novarc"
+        match = re.search('EC2_ACCESS_KEY=\"([^"]+)', novarc)
+        if not match:
+            raise RuntimeError(
+                "Could not extract EC2_ACCESS_KEY from %s" % novarc)
+        return match.group(1)
+    def get_secret_key(novarc):
+        "Extract secret key from novarc"
+        match = re.search('EC2_SECRET_KEY=\"([^"]+)', novarc)
+        if not match:
+            raise RuntimeError(
+                "Could not extract EC2_SECRET_KEY from %s" % novarc)
+        return match.group(1)
+    def get_endpoint(novarc):
+        "Extract Nova endpoint from novarc"
+        match = re.search('EC2_URL=\"([^"]+)', novarc)
+        if not match:
+            raise RuntimeError(
+                 "Could not extract EC2_URL from %s" % novarc)
+        return match.group(1)
+    content = list(CONFIG_DEFAULTS)
+    content.append(
+        'PROJECT_NAME = "%s"' % project)
+    content.append(
+        'USERNAME = "%s"' % user)
+    print 'Please, provide username for your SpotCloud account.'
+    content.append(
+        'SPOTCLOUD_USER = "%s"' % raw_input(
+            "SpotCloud username: ").strip())
+    print 'Please, provide password for your SpotCloud account.'
+    content.append(
+        'SPOTCLOUD_PASSWD = "%s"' % raw_input(
+            "SpotCloud password: ").strip())
+    
+    content.append(
+        'NOVA_ACCESS_KEY = "%s"' % get_access_key(novarc))
+    content.append(
+        'NOVA_SECRET_KEY = "%s"' % get_secret_key(novarc))
+    content.append(
+        'NOVA_ENDPOINT = "%s"' % get_endpoint(novarc))
+    open(CONFIG, 'w').write("\n".join(content))
+    print CONFIG, 'was created'
+
+
+def initialize_db():
+    "Drop/create tables, make sure db file name is owned by user"
+    models.init_db(SQLALCHEMY_DATABASE_URI)
+    if 'sqlite' in SQLALCHEMY_DATABASE_URI:
+        if call(['chmod', '+x', SQLITE_FILE]):
+            raise RuntimeError(
+                "Could not chmod +x for %s" % SQLITE_FILE)
+
+
+def doit(user, project):
+    "Make directories, publish script and config file"
+    make_user(user)
+    make_dirs(user)
+    novarc = get_keys(user, project)
+    make_publish_script(novarc)
+    make_config(novarc, user, project)
+    initialize_db()
+
+
+def main(argv=sys.argv):
+    "Check args and run doit method"
+    if len(argv) != 3:
+        print __doc__
+        sys.exit(1)
+    
+
+if __name__ == '__main__':
+    main()

@@ -9,9 +9,15 @@ import os
 from flask import Flask
 from flaskext.sqlalchemy import SQLAlchemy
 
+DEFAULT_CONFIG = '/var/lib/spotcloudopenstack/spotcloudopenstack.conf'
+
 app = Flask(__name__)
+
+if os.path.exists(DEFAULT_CONFIG):
+    app.config.from_pyfile(DEFAULT_CONFIG)
 if os.environ.has_key("SPOTCLOUDOPENSTACK_SETTINGS"):
     app.config.from_envvar('SPOTCLOUDOPENSTACK_SETTINGS')
+
 db = SQLAlchemy(app)
 
 import logging
