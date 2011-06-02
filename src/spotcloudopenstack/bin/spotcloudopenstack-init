@@ -18,6 +18,7 @@ Usage:
 import sys
 import os
 import re
+import shutil
 from glob import glob
 from subprocess import call
 
@@ -38,6 +39,7 @@ CONFIG_DEFAULTS = (
     'REPO_DIR = "%s"' % REPO_DIR,
     'PUBLISH_SCRIPT = "%s"' % PUBLISH_SCRIPT,
     'LOGGING_FILE = "%s/api.log"' % LOG_DIR)
+UWSGI_APP = 'wsgi.py'
 
 
 def make_dirs(user):
@@ -200,7 +202,7 @@ def make_config(novarc, user, project):
     print CONFIG, 'was created'
 
 
-def initialize_db():
+def initialize_db(user):
     "Drop/create tables, make sure db file name is owned by user"
     from spotcloudopenstack import models
     models.init_db(SQLALCHEMY_DATABASE_URI)
@@ -208,6 +210,17 @@ def initialize_db():
         if call(['chmod', '+x', SQLITE_FILE]):
             raise RuntimeError(
                 "Could not chmod +x for %s" % SQLITE_FILE)
+        if call(['chown', user, SQLITE_FILE]):
+            raise RuntimeError(
+                "Could not do chown for %s" % SQLITE_FILE)
+
+def copy_uwsgi():
+    "Copy uwsgi starter to working dir"
+    import spotcloudopenstack
+    src_dir = os.path.realpath(os.path.dirname(
+            spotcloudopenstack.__file__))
+    src_path = os.path.join(src_dir, UWSGI_APP)
+    shutil.copy(src_path, ROOT_DIR)
 
 
 def doit(user, project):
@@ -217,7 +230,8 @@ def doit(user, project):
     novarc = get_keys(user, project)
     make_publish_script(novarc)
     make_config(novarc, user, project)
-    initialize_db()
+    initialize_db(user)
+    copy_uwsgi()
     print 'Done'
 
 

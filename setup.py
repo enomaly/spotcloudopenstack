@@ -30,6 +30,7 @@ setup(name='spotcloudopenstack',
       license='Apache',
       include_package_data=True,
       classifiers=CLASSIFIERS,
-      scripts = [os.path.join(SCRIPTS_DIR, 'spotcloudopenstack-init')],
+      scripts = [os.path.join(SCRIPTS_DIR, 'spotcloudopenstack-init'),
+                 os.path.join(SCRIPTS_DIR, 'uwsgi26')],
       install_requires=['uuid', 'boto', 'Flask-SQLAlchemy']
 )
